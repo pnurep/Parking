@@ -5,6 +5,10 @@ import android.content.Context;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import com.example.gold.parking.Domain.Park;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -17,6 +21,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,18 +30,40 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     private String hangulParameter = "";
-    private String url = "http://openapi.seoul.go.kr:8088/4c425976676b6f643437665377554c/json/SearchParkingInfo/1/1000/";
+    private final String url = "http://openapi.seoul.go.kr:8088/4c425976676b6f643437665377554c/json/SearchParkingInfo/1/500/";
     ProgressDialog dialog;
+    Spinner spinner;
+
+    public static String locationUrl = "";
+
+    List<String> locationList = new ArrayList<>();
+    List<LatLng> centerList = new ArrayList<>();
+
+    String guArray[] = {"서울", "강남구", "강북구", "강서구", "강동구"};
+
+    LatLng centerOfSeoul = new LatLng(37.566696, 126.977942);
+    LatLng centerOfGangnam = new LatLng(37.517273, 127.047431);
+    LatLng centerOfGangbuk = new LatLng(37.529959, 127.025540);
+    LatLng centerOfGangseo = new LatLng(37.552618, 126.951509);
+    LatLng centerOfGangDong = new LatLng(37.529959, 127.123456);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        spinner = (Spinner) findViewById(R.id.spinner);
+
+        setCenterList();
+        setLocationList();
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
     }
+
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -45,20 +72,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Add a marker in Sydney and move the camera
         // 1. 공영주차장 마커 전체를 화면에 출력
         try {
-            hangulParameter = URLEncoder.encode("중구", "UTF-8"); // url에 들어가는 한글 엔코딩 처리
+            hangulParameter = URLEncoder.encode("", "UTF-8"); // url에 들어가는 한글 엔코딩 처리
         }catch(Exception e){e.printStackTrace();}
 
-        url = url + hangulParameter;
+        locationUrl = url + hangulParameter;
         dialog = new ProgressDialog(this);
-        Remote remote = new Remote();
+        final Remote remote = new Remote();
         remote.getData(this);
 
         // 2. 중심점을 서울로 이동
         //서울시청 위도(Latitude): 37.566696, 경도(Longitude): 126.977942
-
         LatLng seoul = new LatLng(37.566696, 126.977942);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(seoul,12));
+
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, locationList);
+        spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(centerList.get(position), 12));
+                try {
+                    hangulParameter = URLEncoder.encode(guArray[position], "UTF-8");
+                } catch (UnsupportedEncodingException e) {e.printStackTrace();}
+                locationUrl = url + hangulParameter;
+                dialog = new ProgressDialog(MapsActivity.this);
+                Remote remote1 = new Remote();
+                remote1.getData(MapsActivity.this);
+                dialog.dismiss();
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
+
     }
+
 
     @Override
     public Context getContext() {
@@ -67,7 +118,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public String getUrl() {
-        return url;
+        return locationUrl;
     }
 
     @Override
@@ -102,7 +153,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 int current = getInt(park, "CUR_PARKING");
                 int space = capacity - current;
 
-                mMap.addMarker(new MarkerOptions().position(parking).title(space + "/" + capacity));
+                mMap.addMarker(new MarkerOptions().position(parking).title(space + "/" + capacity)).showInfoWindow();
             }
             Log.i("MainActivity","park size================="+parkCodes.size());
 
@@ -111,6 +162,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         dialog.dismiss();
     }
+
+
+    private void setCenterList(){
+        centerList.add(centerOfSeoul);
+        centerList.add(centerOfGangnam);
+        centerList.add(centerOfGangbuk);
+        centerList.add(centerOfGangseo);
+        centerList.add(centerOfGangDong);
+    }
+
+    private void setLocationList(){
+        locationList.add(guArray[0]);
+        locationList.add(guArray[1]);
+        locationList.add(guArray[2]);
+        locationList.add(guArray[3]);
+        locationList.add(guArray[4]);
+    }
+
+
 
     @Override
     public ProgressDialog getProgress(){
